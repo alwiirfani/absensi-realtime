@@ -1,0 +1,42 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isTokenExpiredRuntimeEdge } from "./lib/auth";
+
+const publicPaths = ["/login", "/register"];
+
+export const middleware = (request: NextRequest) => {
+  const { pathname } = request.nextUrl;
+  const token = request.cookies.get("access_token")?.value;
+
+  console.log("Current path:", pathname);
+  console.log("Token found:", !!token);
+
+  if (pathname === "/") return NextResponse.next();
+
+  // cek apakah token ada dan token apakah sudah expired
+  if (token && isTokenExpiredRuntimeEdge(token)) {
+    console.log("Token is expired. Deleting cookie and redirecting to /login.");
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("access_token");
+    return response;
+  }
+
+  // cek apakah path publik dan token ada
+  if (publicPaths.some((path) => pathname.startsWith(path))) {
+    if (token) {
+      return NextResponse.redirect(new URL("/absensi", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // cek apakah token ada dan bukan path publik
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
+};
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

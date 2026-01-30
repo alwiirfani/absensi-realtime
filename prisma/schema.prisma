@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+/// Tabel data pegawai
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  password     String
+  role         Role        @default(EMPLOYEE)
+  position     String
+  department   Department? @relation(fields: [departmentId], references: [id])
+  departmentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendances Attendance[]
+  qrCodes     QRCode[]
+
+  @@map("users")
+}
+
+/// Departemen
+model Department {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  users User[]
+
+  @@map("departments")
+}
+
+/// QR Code untuk sesi absensi
+model QRCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  createdAt DateTime @default(now())
+  expiredAt DateTime
+
+  createdBy String
+  user      User   @relation(fields: [createdBy], references: [id])
+
+  attendances Attendance[]
+
+  @@map("qrcodes")
+}
+
+/// Kehadiran karyawan
+model Attendance {
+  id     String @id @default(uuid())
+  userId String
+  qrId   String
+
+  clockIn  DateTime?
+  clockOut DateTime?
+
+  // Bukti absensi
+  photoUrl   String? // URL foto bukti absensi
+  locationId String? // lokasi absensi
+
+  createdAt DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  qrCode   QRCode    @relation(fields: [qrId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+
+  @@map("attendances")
+}
+
+/// Tabel lokasi absensi
+/// Menyimpan titik GPS saat karyawan absen
+model Location {
+  id        String   @id @default(uuid())
+  latitude  Float
+  longitude Float
+  address   String?
+  createdAt DateTime @default(now())
+
+  attendances Attendance[]
+
+  @@map("locations")
+}
