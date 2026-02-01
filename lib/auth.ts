@@ -44,7 +44,7 @@ export const isTokenExpiredRuntimeEdge = (token: string): boolean => {
   } catch (error) {
     console.error(
       "Error parsing token. Token will be considered invalid.",
-      error
+      error,
     );
     return true;
   }
@@ -154,7 +154,7 @@ export const hashPassword = async (password: string): Promise<string> => {
 
 export const verifyPassword = async (
   password: string,
-  hashedPassword: string
+  hashedPassword: string,
 ): Promise<boolean> => {
   return bcrypt.compare(password, hashedPassword);
 };

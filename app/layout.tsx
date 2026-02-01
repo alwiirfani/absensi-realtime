@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DarkModeProvider } from "@/components/home/dark-mode";
+import Navbar from "@/components/home/home-navbar";
+import Providers from "@/providers/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,10 +27,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
-        {/* ✅ Semua halaman selain `/login` dibungkus provider */}
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning>
         <DarkModeProvider>
-          {children}
+          <Providers>
+            <main>
+              <Navbar />
+              {children}
+            </main>
+          </Providers>
         </DarkModeProvider>
       </body>
     </html>

@@ -1,141 +1,175 @@
-"use client"
+"use client";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
-
-type User = {
-  name: string
-  email: string
-  password: string
-}
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const router = useRouter();
 
-  const router = useRouter()
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [message, setMessage] = useState<{ type: "success" | "error" | ""; text: string }>({
-    type: "",
-    text: "",
-  })
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    position: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const [loading, setLoading] = useState(false);
 
-    if (!name || !email || !password || !confirmPassword) {
-      setMessage({ type: "error", text: "Semua field wajib diisi!" })
-      return
+  const [message, setMessage] = useState<{
+    type: "success" | "error" | "";
+    text: string;
+  }>({ type: "", text: "" });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setLoading(true);
+    setMessage({ type: "", text: "" });
+
+    try {
+      const res = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          role: "EMPLOYEE", // default role
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text:
+            data.message ||
+            Object.values(data.errors || {})
+              .flat()
+              .join(", "),
+        });
+        setLoading(false);
+        return;
+      }
+
+      setMessage({
+        type: "success",
+        text: "Registrasi berhasil! Mengarahkan ke login...",
+      });
+
+      setTimeout(() => router.push("/login"), 1500);
+    } catch (err) {
+      console.log(err);
+      setMessage({
+        type: "error",
+        text: "Terjadi kesalahan, coba lagi.",
+      });
     }
 
-    if (password !== confirmPassword) {
-      setMessage({ type: "error", text: "Password dan konfirmasi password tidak sama!" })
-      return
-    }
-
-    // ✅ Simpan data user ke localStorage (simulasi database)
-    const existingUsers: User[] = JSON.parse(localStorage.getItem("users") || "[]")
-    const userExists = existingUsers.find((user) => user.email === email)
-
-    if (userExists) {
-      setMessage({ type: "error", text: "Email sudah terdaftar!" })
-      return
-    }
-
-    existingUsers.push({ name, email, password })
-    localStorage.setItem("users", JSON.stringify(existingUsers))
-
-    setMessage({ type: "success", text: "Registrasi berhasil! Mengarahkan ke halaman login..." })
-
-    setTimeout(() => {
-      router.push("/login")
-    }, 1500)
-  }
+    setLoading(false);
+  };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("flex flex-col gap-6", className)} {...props}>
+    <form
+      onSubmit={handleSubmit}
+      className={cn("flex flex-col gap-6", className)}
+      {...props}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Register</h1>
-          <p className="text-muted-foreground text-sm text-balance">
+          <p className="text-muted-foreground text-sm">
             Create your new account below
           </p>
         </div>
 
         {message.type && (
-          <Alert variant={message.type === "success" ? "default" : "destructive"}>
-            <AlertTitle>{message.type === "success" ? "Success" : "Error"}</AlertTitle>
+          <Alert
+            variant={message.type === "success" ? "default" : "destructive"}>
+            <AlertTitle>
+              {message.type === "success" ? "Success" : "Error"}
+            </AlertTitle>
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
 
         <Field>
-          <FieldLabel htmlFor="fullname">Name</FieldLabel>
+          <FieldLabel>Name</FieldLabel>
           <Input
             id="name"
-            type="text"
             placeholder="your full name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
+            value={form.name}
+            onChange={handleChange}
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <FieldLabel>Email</FieldLabel>
           <Input
             id="email"
             type="email"
             placeholder="example@gmail.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            value={form.email}
+            onChange={handleChange}
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <FieldLabel>Position</FieldLabel>
+          <Input
+            id="position"
+            placeholder="Staff / Manager"
+            value={form.position}
+            onChange={handleChange}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel>Password</FieldLabel>
           <Input
             id="password"
             type="password"
-            placeholder="*******"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            placeholder="******"
+            value={form.password}
+            onChange={handleChange}
           />
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="confirmPassword">Retype Password</FieldLabel>
+          <FieldLabel>Confirm Password</FieldLabel>
           <Input
             id="confirmPassword"
             type="password"
-            placeholder="*******"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
+            placeholder="******"
+            value={form.confirmPassword}
+            onChange={handleChange}
           />
         </Field>
 
         <Field>
-          <Button type="submit">Register</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Loading..." : "Register"}
+          </Button>
         </Field>
 
         <FieldSeparator />
@@ -150,5 +184,5 @@ export default function RegisterForm({
         </Field>
       </FieldGroup>
     </form>
-  )
+  );
 }

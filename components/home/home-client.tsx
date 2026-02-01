@@ -8,11 +8,23 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect, useState, useContext, useRef, useMemo } from "react";
 import { motion, Variants } from "framer-motion";
-import { 
-  Zap, Shield, Users, BarChart3, Clock, ArrowRight, Mail, Phone,
-  Calendar, Activity, Globe, ChevronDown, Star
+import {
+  Zap,
+  Shield,
+  Users,
+  BarChart3,
+  Clock,
+  ArrowRight,
+  Mail,
+  Phone,
+  Calendar,
+  Activity,
+  Globe,
+  ChevronDown,
+  Star,
 } from "lucide-react";
 import { DarkModeContext } from "@/components/home/dark-mode";
+import { UserAuth } from "@/types/auth";
 
 // === VARIANTS (Ringan) ===
 const slideUp: Variants = {
@@ -28,23 +40,70 @@ const stats = [
 ];
 
 const features = [
-  { title: "Realtime AI", desc: "Absensi instan dengan deteksi AI dan notifikasi push.", icon: Zap },
-  { title: "Dashboard Analitik", desc: "Visualisasi data real-time dan prediksi tren.", icon: BarChart3 },
-  { title: "Skalabilitas Enterprise", desc: "Arsitektur modular, auto-scaling, low-code.", icon: Clock },
-  { title: "Keamanan Quantum-Ready", desc: "Enkripsi AES-256, GDPR, ISO 27001 compliant.", icon: Shield },
+  {
+    title: "Realtime AI",
+    desc: "Absensi instan dengan deteksi AI dan notifikasi push.",
+    icon: Zap,
+  },
+  {
+    title: "Dashboard Analitik",
+    desc: "Visualisasi data real-time dan prediksi tren.",
+    icon: BarChart3,
+  },
+  {
+    title: "Skalabilitas Enterprise",
+    desc: "Arsitektur modular, auto-scaling, low-code.",
+    icon: Clock,
+  },
+  {
+    title: "Keamanan Quantum-Ready",
+    desc: "Enkripsi AES-256, GDPR, ISO 27001 compliant.",
+    icon: Shield,
+  },
 ];
 
 const reviews = [
-  { name: "Advent", role: "CEO TechCorp", rating: 5, review: "Efisiensi absensi naik 40% dalam 2 minggu. Dashboard AI-nya bikin HR kerja jadi lebih santai!" },
-  { name: "Sarah", role: "HR Manager, Global Inc", rating: 5, review: "Insight AI-nya bener-bener actionable. Gak cuma data, tapi solusi langsung buat tim." },
-  { name: "Michael", role: "CTO, Enterprise Solutions", rating: 5, review: "Skalabel untuk 10.000+ karyawan tanpa kendala. Setup 1 hari, langsung jalan mulus." },
+  {
+    name: "Advent",
+    role: "CEO TechCorp",
+    rating: 5,
+    review:
+      "Efisiensi absensi naik 40% dalam 2 minggu. Dashboard AI-nya bikin HR kerja jadi lebih santai!",
+  },
+  {
+    name: "Sarah",
+    role: "HR Manager, Global Inc",
+    rating: 5,
+    review:
+      "Insight AI-nya bener-bener actionable. Gak cuma data, tapi solusi langsung buat tim.",
+  },
+  {
+    name: "Michael",
+    role: "CTO, Enterprise Solutions",
+    rating: 5,
+    review:
+      "Skalabel untuk 10.000+ karyawan tanpa kendala. Setup 1 hari, langsung jalan mulus.",
+  },
 ];
 
 const faqs = [
-  { question: "Apa itu Sistem Absensi RAD AI?", answer: "Sistem absensi karyawan berbasis AI yang dikembangkan dengan metode RAD — cepat, stabil, dan mudah disesuaikan." },
-  { question: "Apakah bisa terintegrasi dengan HRIS?", answer: "Ya. Dukung REST API, GraphQL, SAP, Oracle, Google Workspace." },
-  { question: "Bagaimana keamanan data?", answer: "Enkripsi AES-256, zero-access, audit rutin, GDPR & ISO 27001." },
-  { question: "Ada dukungan teknis?", answer: "Chat & email 24/7. Paket enterprise dapat SLA + onboarding." },
+  {
+    question: "Apa itu Sistem Absensi RAD AI?",
+    answer:
+      "Sistem absensi karyawan berbasis AI yang dikembangkan dengan metode RAD — cepat, stabil, dan mudah disesuaikan.",
+  },
+  {
+    question: "Apakah bisa terintegrasi dengan HRIS?",
+    answer: "Ya. Dukung REST API, GraphQL, SAP, Oracle, Google Workspace.",
+  },
+  {
+    question: "Bagaimana keamanan data?",
+    answer: "Enkripsi AES-256, zero-access, audit rutin, GDPR & ISO 27001.",
+  },
+  {
+    question: "Ada dukungan teknis?",
+    answer: "Chat & email 24/7. Paket enterprise dapat SLA + onboarding.",
+  },
 ];
 
 // === HERO SECTION ===
@@ -70,14 +129,22 @@ function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
-              Absensi <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">Realtime</span>
+              Absensi{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+                Realtime
+              </span>
               <br />
-              <span className="text-3xl md:text-5xl text-gray-300">dengan </span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-300 to-gray-300">RAD</span>
+              <span className="text-3xl md:text-5xl text-gray-300">
+                dengan{" "}
+              </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-300 to-gray-300">
+                RAD
+              </span>
             </h1>
 
             <p className="text-base md:text-lg text-gray-300 max-w-xl leading-relaxed">
-              Santai aja. Absen pake AI — cepat, akurat, dan bikin HR nggak pusing lagi.
+              Santai aja. Absen pake AI — cepat, akurat, dan bikin HR nggak
+              pusing lagi.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -87,18 +154,28 @@ function HeroSection() {
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                 </span>
               </Button>
-              <Button variant="outline" className="border-2 border-white/30 text-black px-8 py-6 rounded-xl font-bold hover:bg-white/10 transform hover:scale-105 transition-all duration-300 text-base md:text-lg">
+              <Button
+                variant="outline"
+                className="border-2 border-white/30 text-black px-8 py-6 rounded-xl font-bold hover:bg-white/10 transform hover:scale-105 transition-all duration-300 text-base md:text-lg">
                 Lihat Demo
               </Button>
             </div>
 
             <div className="flex flex-wrap gap-4 pt-4">
-              {[{ icon: Shield, text: "Super Aman" }, { icon: Activity, text: "AI Cerdas" }, { icon: Globe, text: "Siap Global" }].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 bg-white/5 rounded-full px-5 py-3 border border-white/10">
+              {[
+                { icon: Shield, text: "Super Aman" },
+                { icon: Activity, text: "AI Cerdas" },
+                { icon: Globe, text: "Siap Global" },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 bg-white/5 rounded-full px-5 py-3 border border-white/10">
                   <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center">
                     <item.icon className="w-5 h-5 text-white" />
                   </div>
-                  <span className="text-sm font-medium text-gray-200">{item.text}</span>
+                  <span className="text-sm font-medium text-gray-200">
+                    {item.text}
+                  </span>
                 </div>
               ))}
             </div>
@@ -110,7 +187,9 @@ function HeroSection() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-8 h-8 text-cyan-300" />
-                  <span className="text-white font-bold text-xl">Dashboard RAD</span>
+                  <span className="text-white font-bold text-xl">
+                    Dashboard RAD
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse" />
@@ -140,18 +219,38 @@ function HeroSection() {
               </div>
 
               <div className="grid grid-cols-3 gap-4 mt-6">
-                {[{ label: "Hadir", percent: 98, color: "from-emerald-400 to-teal-400" }, { label: "Terlambat", percent: 1, color: "from-amber-400 to-orange-400" }, { label: "Absen", percent: 1, color: "from-rose-400 to-pink-400" }].
-
-map((stat, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 border border-white/10">
-                    <p className="text-gray-300 text-xs font-medium">{stat.label}</p>
+                {[
+                  {
+                    label: "Hadir",
+                    percent: 98,
+                    color: "from-emerald-400 to-teal-400",
+                  },
+                  {
+                    label: "Terlambat",
+                    percent: 1,
+                    color: "from-amber-400 to-orange-400",
+                  },
+                  {
+                    label: "Absen",
+                    percent: 1,
+                    color: "from-rose-400 to-pink-400",
+                  },
+                ].map((stat, i) => (
+                  <div
+                    key={i}
+                    className="bg-white/5 rounded-xl p-3 border border-white/10">
+                    <p className="text-gray-300 text-xs font-medium">
+                      {stat.label}
+                    </p>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden mt-1">
                       <div
                         className={`h-full bg-gradient-to-r ${stat.color}`}
                         style={{ width: `${stat.percent}%` }}
                       />
                     </div>
-                    <p className="text-white font-bold text-lg mt-1">{stat.percent}%</p>
+                    <p className="text-white font-bold text-lg mt-1">
+                      {stat.percent}%
+                    </p>
                   </div>
                 ))}
               </div>
@@ -162,16 +261,30 @@ map((stat, i) => (
 
       {/* Wave */}
       <div className="absolute bottom-0 left-0 right-0">
-        <svg viewBox="0 0 1440 180" fill="none" className="w-full h-28 text-white" preserveAspectRatio="none">
-          <path d="M0,100 C360,180 1080,20 1440,120 L1440,180 L0,180 Z" fill="currentColor" opacity="0.9" />
+        <svg
+          viewBox="0 0 1440 180"
+          fill="none"
+          className="w-full h-28 text-white"
+          preserveAspectRatio="none">
+          <path
+            d="M0,100 C360,180 1080,20 1440,120 L1440,180 L0,180 Z"
+            fill="currentColor"
+            opacity="0.9"
+          />
         </svg>
       </div>
     </section>
   );
 }
 
+const FE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+interface HomeClientProps {
+  user?: UserAuth | null;
+}
+
 // === MAIN COMPONENT ===
-export default function HomeClient() {
+const HomeClient: React.FC<HomeClientProps> = ({ user }) => {
   const { darkMode } = useContext(DarkModeContext) || { darkMode: false };
   const [counts, setCounts] = useState([0, 0, 0]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -186,14 +299,14 @@ export default function HomeClient() {
   useEffect(() => {
     if (!isMounted) return;
 
-    const targets = stats.map(s => s.number);
+    const targets = stats.map((s) => s.number);
     const startTime = performance.now();
     const duration = 1500;
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      setCounts(targets.map(t => Math.floor(t * progress)));
+      setCounts(targets.map((t) => Math.floor(t * progress)));
 
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(animate);
@@ -206,11 +319,14 @@ export default function HomeClient() {
     };
   }, [isMounted]);
 
-  if (!isMounted) return <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black" />;
+  if (!isMounted)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black" />
+    );
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'bg-gray-950 text-white' : 'bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-900'} overflow-x-hidden`}>
-      
+    <div
+      className={`min-h-screen transition-colors duration-500 ${darkMode ? "bg-gray-950 text-white" : "bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-900"} overflow-x-hidden`}>
       {/* HERO */}
       <HeroSection />
 
@@ -227,14 +343,14 @@ export default function HomeClient() {
                   initial="hidden"
                   whileInView="visible"
                   viewport={{ once: true }}
-                  className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-white/10"
-                >
+                  className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-white/10">
                   <div className="flex items-center justify-between mb-6">
                     <Icon className="w-12 h-12 text-cyan-400" />
                     <div className="w-20 h-20 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-full" />
                   </div>
                   <h3 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
-                    {counts[i]}{stat.suffix}
+                    {counts[i]}
+                    {stat.suffix}
                   </h3>
                   <p className="mt-3 text-gray-300 text-lg">{stat.text}</p>
                 </motion.div>
@@ -248,7 +364,10 @@ export default function HomeClient() {
       <section className="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-900 to-black">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Data Absensi <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">Live</span>
+            Data Absensi{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+              Live
+            </span>
           </h2>
           <div className="bg-white/5 rounded-2xl p-6 md:p-10 border border-white/10">
             <DataTableDemo />
@@ -260,7 +379,10 @@ export default function HomeClient() {
       <section className="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-900 to-black">
         <div className="max-w-7xl mx-auto text-center mb-16">
           <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Fitur <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">Unggulan</span>
+            Fitur{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+              Unggulan
+            </span>
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto px-4">
@@ -274,13 +396,14 @@ export default function HomeClient() {
                 whileInView="visible"
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-white/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-              >
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-white/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                 <div className="w-14 h-14 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center mb-5">
                   <Icon className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
-                <p className="text-gray-300 text-sm leading-relaxed">{f.desc}</p>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  {f.desc}
+                </p>
               </motion.div>
             );
           })}
@@ -292,10 +415,14 @@ export default function HomeClient() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-              Apa Kata <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">Mitra Kami</span>
+              Apa Kata{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+                Mitra Kami
+              </span>
             </h2>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Testimoni dari perusahaan dan tim yang telah menggunakan sistem absensi kami.
+              Testimoni dari perusahaan dan tim yang telah menggunakan sistem
+              absensi kami.
             </p>
           </div>
 
@@ -307,14 +434,18 @@ export default function HomeClient() {
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-white/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-              >
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-white/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                 <div className="flex gap-1 mb-4">
                   {[...Array(r.rating)].map((_, j) => (
-                    <Star key={j} className="w-5 h-5 fill-cyan-400 text-cyan-400" />
+                    <Star
+                      key={j}
+                      className="w-5 h-5 fill-cyan-400 text-cyan-400"
+                    />
                   ))}
                 </div>
-                <p className="text-gray-300 italic mb-6 leading-relaxed">“{r.review}”</p>
+                <p className="text-gray-300 italic mb-6 leading-relaxed">
+                  “{r.review}”
+                </p>
                 <div>
                   <p className="text-white font-bold">{r.name}</p>
                   <p className="text-gray-400 text-sm">{r.role}</p>
@@ -329,20 +460,29 @@ export default function HomeClient() {
       <section className="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-900 to-black">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-4xl md:text-6xl font-bold text-center text-white mb-16">
-            FAQ <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">Santai</span>
+            FAQ{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+              Santai
+            </span>
           </h2>
           <div className="space-y-4">
             {faqs.map((faq, i) => (
-              <div key={i} className="bg-gray-800 rounded-2xl border border-white/10 overflow-hidden">
+              <div
+                key={i}
+                className="bg-gray-800 rounded-2xl border border-white/10 overflow-hidden">
                 <button
                   className="w-full flex justify-between items-center p-6 text-left text-lg md:text-xl font-bold text-white hover:bg-gray-700 transition"
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                >
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}>
                   {faq.question}
-                  <ChevronDown className={`w-6 h-6 text-cyan-400 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-6 h-6 text-cyan-400 transition-transform ${openFaq === i ? "rotate-180" : ""}`}
+                  />
                 </button>
-                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? 'max-h-40 p-6' : 'max-h-0'}`}>
-                  <p className="text-gray-300 text-sm leading-relaxed">{faq.answer}</p>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ${openFaq === i ? "max-h-40 p-6" : "max-h-0"}`}>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {faq.answer}
+                  </p>
                 </div>
               </div>
             ))}
@@ -353,7 +493,9 @@ export default function HomeClient() {
       {/* CTA */}
       <section className="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-center">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl md:text-7xl font-bold text-white mb-8">Siap Bikin Absen Jadi Santai?</h2>
+          <h2 className="text-4xl md:text-7xl font-bold text-white mb-8">
+            Siap Bikin Absen Jadi Santai?
+          </h2>
           <Button className="bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-bold px-12 py-8 rounded-xl text-xl hover:shadow-lg transform hover:scale-105 transition-all duration-300">
             Mulai Absen Sekarang
           </Button>
@@ -366,15 +508,25 @@ export default function HomeClient() {
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div>
               <h2 className="text-3xl font-bold text-white mb-4">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">RAD</span> Absensi
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-300">
+                  RAD
+                </span>{" "}
+                Absensi
               </h2>
-              <p className="text-sm leading-relaxed">Absen pake AI. Cepat, akurat, dan bikin hidup HR jadi lebih chill.</p>
+              <p className="text-sm leading-relaxed">
+                Absen pake AI. Cepat, akurat, dan bikin hidup HR jadi lebih
+                chill.
+              </p>
             </div>
             <div>
               <h4 className="text-lg font-bold text-white mb-4">Navigasi</h4>
               <ul className="space-y-2 text-sm">
                 {["Home", "Absensi", "Kontak"].map((item) => (
-                  <li key={item}><Link href="#" className="hover:text-cyan-400 transition">→ {item}</Link></li>
+                  <li key={item}>
+                    <Link href="#" className="hover:text-cyan-400 transition">
+                      → {item}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -382,20 +534,30 @@ export default function HomeClient() {
               <h4 className="text-lg font-bold text-white mb-4">Layanan</h4>
               <ul className="space-y-2 text-sm">
                 {["Realtime", "Data Privacy", "Support 24/7"].map((item) => (
-                  <li key={item} className="hover:text-cyan-400 transition cursor-pointer">• {item}</li>
+                  <li
+                    key={item}
+                    className="hover:text-cyan-400 transition cursor-pointer">
+                    • {item}
+                  </li>
                 ))}
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-bold text-white mb-4">Hubungi</h4>
               <ul className="space-y-3 text-sm">
-                <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-cyan-400" /> advent@mail.go.id</li>
-                <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-cyan-400" /> +62 812-3456-7890</li>
+                <li className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-cyan-400" /> advent@mail.go.id
+                </li>
+                <li className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-cyan-400" /> +62 812-3456-7890
+                </li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>© {new Date().getFullYear()} RAD Absensi. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} RAD Absensi. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>
@@ -403,16 +565,32 @@ export default function HomeClient() {
       {/* Global CSS Animations */}
       <style jsx global>{`
         @keyframes float-slow {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(80px, -80px); }
+          0%,
+          100% {
+            transform: translate(0, 0);
+          }
+          50% {
+            transform: translate(80px, -80px);
+          }
         }
         @keyframes float-slow-reverse {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(-80px, 80px); }
+          0%,
+          100% {
+            transform: translate(0, 0);
+          }
+          50% {
+            transform: translate(-80px, 80px);
+          }
         }
-        .animate-float-slow { animation: float-slow 20s infinite linear; }
-        .animate-float-slow-reverse { animation: float-slow-reverse 18s infinite linear; }
+        .animate-float-slow {
+          animation: float-slow 20s infinite linear;
+        }
+        .animate-float-slow-reverse {
+          animation: float-slow-reverse 18s infinite linear;
+        }
       `}</style>
     </div>
   );
-}
+};
+
+export default HomeClient;
