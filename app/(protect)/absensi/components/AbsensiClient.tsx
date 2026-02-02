@@ -25,6 +25,7 @@ import { Toaster, toast } from "sonner";
 import { useWindowSize } from "react-use";
 import FooterClient from "@/components/layouts/Footer";
 import { useUser } from "@/providers/auth-provider";
+import Image from "next/image";
 
 interface Coordinates {
   lat: number | null;
@@ -547,12 +548,14 @@ export default function AbsensiClient() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           className="relative rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-gray-900">
-                          {/* Ganti <Image> jadi <img> native */}
-                          <img
+                          <Image
                             src={photoURL}
                             alt="Preview selfie"
-                            className="w-full h-auto object-cover" // atau sesuaikan aspect-ratio kalau perlu
-                            style={{ display: "block", width: "100%" }}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 500px"
+                            placeholder="blur" // optional: blur saat loading (bagus UX)
+                            unoptimized={true}
                           />
                           <button
                             type="button"
