@@ -26,7 +26,6 @@ import { useWindowSize } from "react-use";
 import FooterClient from "@/components/layouts/Footer";
 import { useUser } from "@/providers/auth-provider";
 import Image from "next/image";
-import { getPlaiceholder } from "plaiceholder";
 
 interface Coordinates {
   lat: number | null;
@@ -48,7 +47,6 @@ export default function AbsensiClient() {
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoURL, setPhotoURL] = useState<string>("");
-  const [blurDataURL, setBlurDataURL] = useState<string>("");
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [name, setName] = useState<string>("");
@@ -310,21 +308,6 @@ export default function AbsensiClient() {
     }
   }, []);
 
-  // Helper untuk generate blurDataURL dari Blob
-  const generateBlurPlaceholder = useCallback(async (blob: Blob) => {
-    try {
-      const buffer = await blob.arrayBuffer();
-      const { base64 } = await getPlaiceholder(Buffer.from(buffer), {
-        size: 10,
-      });
-      setBlurDataURL(base64);
-    } catch (err) {
-      console.error("Gagal generate blur placeholder:", err);
-      setBlurDataURL(""); // fallback → placeholder jadi empty
-      // toast.warning("Efek blur loading tidak tersedia"); // optional
-    }
-  }, []);
-
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) {
       toast.error("Video atau canvas tidak tersedia");
@@ -362,7 +345,6 @@ export default function AbsensiClient() {
           setPhotoBlob(blob);
           const newUrl = URL.createObjectURL(blob);
           setPhotoURL(newUrl);
-          generateBlurPlaceholder(blob); // ← generate blur di sini
           toast.success("Foto berhasil di-capture!");
         } else {
           toast.error("Hasil capture kosong");
@@ -371,7 +353,7 @@ export default function AbsensiClient() {
       "image/jpeg",
       0.92,
     );
-  }, [photoURL, generateBlurPlaceholder]);
+  }, [photoURL]);
 
   const handleFileUpload = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -384,10 +366,9 @@ export default function AbsensiClient() {
       setPhotoBlob(file);
       const newUrl = URL.createObjectURL(file);
       setPhotoURL(newUrl);
-      generateBlurPlaceholder(file); // ← generate blur di sini juga
       toast.success("Foto berhasil di-upload!");
     },
-    [photoURL, generateBlurPlaceholder],
+    [photoURL],
   );
 
   // Cleanup URL blob saat component unmount atau photo berganti
@@ -629,16 +610,14 @@ export default function AbsensiClient() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          className="relative rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-gray-900">
+                          className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-gray-900">
                           <Image
                             src={photoURL}
                             alt="Preview selfie"
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 500px"
-                            placeholder={blurDataURL ? "blur" : "empty"}
-                            blurDataURL={blurDataURL || undefined}
-                            unoptimized={true}
+                            unoptimized
                           />
                           <button
                             type="button"
@@ -646,7 +625,6 @@ export default function AbsensiClient() {
                               if (photoURL) URL.revokeObjectURL(photoURL);
                               setPhotoURL("");
                               setPhotoBlob(null);
-                              setBlurDataURL("");
                             }}
                             className="absolute top-4 right-4 p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-xl">
                             <X className="w-6 h-6" />
