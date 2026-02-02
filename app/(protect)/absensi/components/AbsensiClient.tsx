@@ -23,8 +23,8 @@ import {
 import Confetti from "react-confetti";
 import { Toaster, toast } from "sonner";
 import { useWindowSize } from "react-use";
-import Image from "next/image";
 import FooterClient from "@/components/layouts/Footer";
+import { useUser } from "@/providers/auth-provider";
 
 interface Coordinates {
   lat: number | null;
@@ -34,10 +34,12 @@ interface Coordinates {
 }
 
 export default function AbsensiClient() {
+  const { user } = useUser();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const watchRef = useRef<number | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
@@ -53,40 +55,90 @@ export default function AbsensiClient() {
     accuracy: null,
     timestamp: null,
   });
+  const [locationStatus, setLocationStatus] = useState<
+    "loading" | "success" | "error" | "denied" | "timeout"
+  >("loading");
+  const [locationErrorMsg, setLocationErrorMsg] = useState<string>("");
 
   const { width, height } = useWindowSize();
 
-  // Focus input nama saat mount
+  // Focus nama
   useEffect(() => {
     nameInputRef.current?.focus();
-  }, []);
+    if (user && user.name && !name.trim()) {
+      setName(user.name);
+    }
+  }, [user, name]);
 
-  // Geolocation watcher
-  useEffect(() => {
+  // Geolocation watcher + retry logic
+  const startWatchingLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation tidak didukung di browser ini");
+      setLocationStatus("error");
+      setLocationErrorMsg("Geolocation tidak didukung di browser ini");
+      toast.error("Geolocation tidak didukung");
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setCoords({
-          lat: latitude,
-          lon: longitude,
-          accuracy,
-          timestamp: position.timestamp,
-        });
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        toast.error("Gagal mendapatkan lokasi");
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
+    const options = {
+      enableHighAccuracy: false, // ← Kunci utama: false biar pakai network/WiFi
+      timeout: 20000, // 20 detik
+      maximumAge: 60000, // reuse posisi max 1 menit
+    };
+
+    const success = (position: GeolocationPosition) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      setCoords({
+        lat: latitude,
+        lon: longitude,
+        accuracy,
+        timestamp: position.timestamp,
+      });
+      setLocationStatus("success");
+      setLocationErrorMsg("");
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+
+    const errorHandler = (error: GeolocationPositionError) => {
+      console.error("Geolocation error:", error);
+
+      let msg = "Gagal mendapatkan lokasi";
+      let status: typeof locationStatus = "error";
+
+      switch (error.code) {
+        case 1: // PERMISSION_DENIED
+          msg = "Izin lokasi ditolak. Izinkan di pengaturan browser.";
+          status = "denied";
+          break;
+        case 2: // POSITION_UNAVAILABLE
+          msg =
+            "Lokasi tidak tersedia (mungkin WiFi lemah atau quota Google habis). Coba pakai HP atau jaringan lain.";
+          status = "error";
+          break;
+        case 3: // TIMEOUT
+          msg = "Waktu habis. Coba lagi atau pastikan internet stabil.";
+          status = "timeout";
+          break;
+        default:
+          msg = error.message || "Error tidak diketahui";
       }
+
+      setLocationStatus(status);
+      setLocationErrorMsg(msg);
+      toast.error(msg);
+
+      // Retry setelah 8 detik kalau bukan denied
+      if (error.code !== 1 && !retryTimeoutRef.current) {
+        retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
+          startWatchingLocation(); // retry
+        }, 8000);
+      }
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      success,
+      errorHandler,
+      options,
     );
 
     watchRef.current = watchId;
@@ -95,8 +147,14 @@ export default function AbsensiClient() {
       if (watchRef.current !== null) {
         navigator.geolocation.clearWatch(watchRef.current);
       }
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const cleanup = startWatchingLocation();
+    return cleanup;
+  }, [startWatchingLocation]);
 
   // Stop camera helper (stable)
   const stopCamera = useCallback(() => {
@@ -113,46 +171,139 @@ export default function AbsensiClient() {
     return () => stopCamera();
   }, [stopCamera]);
 
+  // Ganti startCamera menjadi ini (tanpa any, type lebih aman)
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1920, height: 1080 },
+      const stream: MediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       });
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        const video: HTMLVideoElement = videoRef.current;
+        video.srcObject = stream;
+        video.playsInline = true;
+
+        // Tunggu video punya data (frame pertama siap)
+        await new Promise<void>((resolve, reject) => {
+          if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            resolve();
+            return;
+          }
+
+          const onLoadedData = () => {
+            video.removeEventListener("loadeddata", onLoadedData);
+            resolve();
+          };
+
+          const onError = (e: Event) => {
+            video.removeEventListener("error", onError);
+            reject(new Error("Gagal memuat stream video"));
+          };
+
+          video.addEventListener("loadeddata", onLoadedData);
+          video.addEventListener("error", onError);
+
+          // Safety timeout
+          const timeoutId = setTimeout(() => {
+            video.removeEventListener("loadeddata", onLoadedData);
+            video.removeEventListener("error", onError);
+            reject(new Error("Timeout: video tidak siap setelah 10 detik"));
+          }, 10000);
+
+          video.play().catch((err: Error) => {
+            clearTimeout(timeoutId);
+            reject(err);
+          });
+
+          // Cleanup timeout kalau resolve/reject lebih dulu
+          const cleanup = () => clearTimeout(timeoutId);
+          resolve = ((origResolve) => () => {
+            cleanup();
+            origResolve();
+          })(resolve);
+          reject = ((origReject) => (reason?: unknown) => {
+            cleanup();
+            origReject(reason);
+          })(reject);
+        });
+
         setStreamActive(true);
+        toast.success("Kamera berhasil diaktifkan");
       }
     } catch (err) {
-      console.error(err);
-      toast.error("Kamera tidak dapat diakses – gunakan Upload Foto");
+      console.error("Camera error:", err);
+
+      let message = "Kamera tidak dapat diakses – coba upload foto saja";
+      if (err instanceof DOMException) {
+        if (err.name === "NotAllowedError") {
+          message =
+            "Izin kamera ditolak. Izinkan akses kamera di pengaturan browser.";
+        } else if (err.name === "NotFoundError") {
+          message = "Tidak ditemukan kamera di perangkat ini.";
+        } else if (err.name === "SecurityError") {
+          message = "Kamera hanya bisa digunakan di HTTPS atau localhost.";
+        } else if (err.name === "OverconstrainedError") {
+          message = "Spesifikasi kamera tidak cocok dengan perangkat.";
+        }
+      }
+
+      toast.error(message);
     }
   }, []);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      toast.error("Video atau canvas tidak tersedia");
+      return;
+    }
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const video: HTMLVideoElement = videoRef.current;
+    const canvas: HTMLCanvasElement = canvasRef.current;
 
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    // Pastikan video benar-benar siap
+    if (
+      video.readyState < video.HAVE_CURRENT_DATA ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
+      toast.warning(
+        "Video belum siap untuk di-capture. Tunggu sebentar lalu coba lagi.",
+      );
+      return;
+    }
+
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext("2d");
+    if (!ctx) {
+      toast.error("Gagal mendapatkan konteks canvas 2D");
+      return;
+    }
+
+    // Set ukuran canvas sesuai video asli
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Gambar frame saat ini ke canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // Convert ke blob
     canvas.toBlob(
-      (blob) => {
-        if (blob) {
+      (blob: Blob | null) => {
+        if (blob && blob.size > 1000) {
+          // hindari blob kosong/invalid
           setPhotoBlob(blob);
           setPhotoURL(URL.createObjectURL(blob));
-          toast.success("Foto berhasil diambil!");
+          toast.success("Foto berhasil di-capture!");
+        } else {
+          toast.error("Gagal membuat file foto – hasil capture kosong");
         }
       },
       "image/jpeg",
-      0.95
+      0.92,
     );
   }, []);
 
@@ -202,10 +353,13 @@ export default function AbsensiClient() {
         formData.append("lat", coords.lat?.toString() ?? "");
         formData.append("lon", coords.lon?.toString() ?? "");
         formData.append("accuracy", coords.accuracy?.toString() ?? "");
-        formData.append("timestamp", coords.timestamp?.toString() ?? Date.now().toString());
+        formData.append(
+          "timestamp",
+          coords.timestamp?.toString() ?? Date.now().toString(),
+        );
         formData.append("photo", photoBlob, `absensi_${Date.now()}.jpg`);
 
-        const res = await fetch("/api/attendance", {
+        const res = await fetch("/api/v1/attendance", {
           method: "POST",
           body: formData,
         });
@@ -218,20 +372,35 @@ export default function AbsensiClient() {
           throw new Error(text || "Gagal mengirim absensi");
         }
 
+        const data = await res.json();
+        const attendanceId = data.id || Date.now().toString();
+
+        console.log(data);
+
         toast.success("Absensi berhasil dikirim!", { duration: 5000 });
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 6000);
-        resetForm();
+
+        // Redirect ke halaman QR dengan query params
+        const qrUrl = `/absensi/qr?id=${attendanceId}&name=${encodeURIComponent(name)}&timestamp=${coords.timestamp || Date.now()}&qrCodeValue=${data.qrCodeValue}`;
+        // window.location.href = qrUrl;
+
+        // resetForm();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Terjadi kesalahan";
+        const message =
+          err instanceof Error ? err.message : "Terjadi kesalahan";
         toast.error("Gagal mengirim: " + message);
       } finally {
         setUploading(false);
         setUploadProgress(0);
       }
     },
-    [name, photoBlob, coords, resetForm]
+    [name, photoBlob, coords, resetForm],
   );
+
+  // Hanya ubah bagian UI Lokasi supaya lebih informatif
+  const mapURL = (lat: number, lon: number) =>
+    `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.004},${lat - 0.004},${lon + 0.004},${lat + 0.004}&layer=mapnik&marker=${lat},${lon}`;
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -259,30 +428,42 @@ export default function AbsensiClient() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [streamActive, photoURL, submitAttendance, resetForm, capturePhoto]);
 
-  const mapURL = (lat: number, lon: number) =>
-    `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.004},${lat - 0.004},${lon + 0.004},${lat + 0.004}&layer=mapnik&marker=${lat},${lon}`;
-
   return (
     <>
       <Toaster position="top-center" richColors closeButton />
       {showConfetti && (
-        <Confetti width={width} height={height} recycle={false} numberOfPieces={400} />
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={400}
+        />
       )}
 
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-black dark:via-gray-950 dark:to-indigo-950 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-6xl">
           {/* Header */}
-          <motion.div className="text-center mb-10" initial={{ y: -40 }} animate={{ y: 0 }}>
+          <motion.div
+            className="text-center mb-10"
+            initial={{ y: -40 }}
+            animate={{ y: 0 }}>
             <h1 className="text-6xl md:text-7xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
               Absensi Realtime
             </h1>
-            <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 font-medium">Verifikasi kehadiran • Real-time</p>
+            <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 font-medium">
+              Verifikasi kehadiran • Real-time
+            </p>
           </motion.div>
 
           {/* Card */}
           <div className="backdrop-blur-2xl bg-white/70 dark:bg-gray-950/80 rounded-3xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden">
             <div className="p-8 lg:p-12">
-              <form onSubmit={(e) => void submitAttendance(e)} className="space-y-12">
+              <form
+                onSubmit={(e) => void submitAttendance(e)}
+                className="space-y-12">
                 {/* Nama */}
                 <div className="relative group">
                   <label className="flex items-center gap-3 text-lg font-bold text-gray-800 dark:text-white">
@@ -309,12 +490,18 @@ export default function AbsensiClient() {
                     </h3>
 
                     <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-black">
-                      <video ref={videoRef} playsInline className="w-full aspect-video object-cover" />
+                      <video
+                        ref={videoRef}
+                        playsInline
+                        className="w-full aspect-video object-cover"
+                      />
                       <canvas ref={canvasRef} className="hidden" />
 
                       {!streamActive && !photoURL && (
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center pb-10">
-                          <p className="text-white text-2xl font-bold tracking-wider">Tekan tombol untuk mengaktifkan kamera</p>
+                          <p className="text-white text-2xl font-bold tracking-wider">
+                            Tekan tombol untuk mengaktifkan kamera
+                          </p>
                         </div>
                       )}
                     </div>
@@ -322,9 +509,10 @@ export default function AbsensiClient() {
                     <div className="flex flex-wrap gap-4">
                       <button
                         type="button"
-                        onClick={() => (streamActive ? stopCamera() : void startCamera())}
-                        className="flex-1 px-8 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all flex items-center justify-center gap-3"
-                      >
+                        onClick={() =>
+                          streamActive ? stopCamera() : void startCamera()
+                        }
+                        className="flex-1 px-8 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all flex items-center justify-center gap-3">
                         <Camera className="w-6 h-6" />
                         {streamActive ? "Matikan Kamera" : "Nyalakan Kamera"}
                       </button>
@@ -333,8 +521,7 @@ export default function AbsensiClient() {
                         type="button"
                         disabled={!streamActive}
                         onClick={() => void capturePhoto()}
-                        className="px-10 py-5 bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-700 rounded-2xl font-bold text-lg hover:shadow-lg disabled:opacity-50 flex items-center gap-3"
-                      >
+                        className="px-10 py-5 bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-700 rounded-2xl font-bold text-lg hover:shadow-lg disabled:opacity-50 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                           <Camera className="w-6 h-6 text-white" />
                         </div>
@@ -344,15 +531,36 @@ export default function AbsensiClient() {
                       <label className="px-8 py-5 bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-700 rounded-2xl font-bold text-lg cursor-pointer hover:shadow-lg flex items-center justify-center gap-3">
                         <Upload className="w-6 h-6" />
                         Upload
-                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                        />
                       </label>
                     </div>
 
                     <AnimatePresence>
                       {photoURL && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className="relative rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-gray-900">
-                          <Image src={photoURL} alt="Preview selfie" className="w-full object-cover" />
-                          <button type="button" onClick={() => { setPhotoURL(""); setPhotoBlob(null); }} className="absolute top-4 right-4 p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-xl">
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="relative rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-gray-900">
+                          {/* Ganti <Image> jadi <img> native */}
+                          <img
+                            src={photoURL}
+                            alt="Preview selfie"
+                            className="w-full h-auto object-cover" // atau sesuaikan aspect-ratio kalau perlu
+                            style={{ display: "block", width: "100%" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoURL("");
+                              setPhotoBlob(null);
+                            }}
+                            className="absolute top-4 right-4 p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-xl">
                             <X className="w-6 h-6" />
                           </button>
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
@@ -373,35 +581,86 @@ export default function AbsensiClient() {
                       Lokasi Real-time
                     </h3>
 
+                    {locationStatus === "loading" && (
+                      <div className="text-center py-4 text-gray-500">
+                        <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-2" />
+                        Mencari lokasi...
+                      </div>
+                    )}
+
+                    {locationStatus === "denied" && (
+                      <div className="bg-red-100 dark:bg-red-900/30 p-6 rounded-2xl text-red-800 dark:text-red-300">
+                        <AlertCircle className="w-10 h-10 mx-auto mb-3" />
+                        <p className="font-bold">Izin lokasi ditolak</p>
+                        <p className="mt-2">
+                          Izinkan akses lokasi di pengaturan browser untuk
+                          melanjutkan.
+                        </p>
+                      </div>
+                    )}
+
+                    {locationErrorMsg && locationStatus !== "denied" && (
+                      <div className="bg-amber-100 dark:bg-amber-900/30 p-6 rounded-2xl text-amber-800 dark:text-amber-300">
+                        <AlertCircle className="w-10 h-10 mx-auto mb-3" />
+                        <p>{locationErrorMsg}</p>
+                        <p className="mt-2 text-sm">
+                          Coba refresh atau ganti jaringan/WiFi.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-5">
-                      {["Latitude", "Longitude", "Akurasi", "Waktu"].map((label, i) => (
-                        <div key={i} className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-800">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
-                          <p className="text-2xl font-black text-gray-900 dark:text-white mt-2">
-                            {i === 0
-                              ? coords.lat?.toFixed(6) ?? "..."
-                              : i === 1
-                              ? coords.lon?.toFixed(6) ?? "..."
-                              : i === 2
-                              ? coords.accuracy
-                                ? `${coords.accuracy.toFixed(0)} m`
-                                : "..."
-                              : coords.timestamp
-                              ? new Date(coords.timestamp).toLocaleTimeString()
-                              : "..."}
-                          </p>
-                        </div>
-                      ))}
+                      {["Latitude", "Longitude", "Akurasi", "Waktu"].map(
+                        (label, i) => (
+                          <div
+                            key={i}
+                            className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-800">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {label}
+                            </p>
+                            <p className="text-2xl font-black text-gray-900 dark:text-white mt-2">
+                              {i === 0
+                                ? coords.lat
+                                  ? coords.lat.toFixed(6)
+                                  : locationStatus === "success"
+                                    ? "—"
+                                    : "..."
+                                : i === 1
+                                  ? coords.lon
+                                    ? coords.lon.toFixed(6)
+                                    : locationStatus === "success"
+                                      ? "—"
+                                      : "..."
+                                  : i === 2
+                                    ? coords.accuracy
+                                      ? `${coords.accuracy.toFixed(0)} m`
+                                      : "..."
+                                    : coords.timestamp
+                                      ? new Date(
+                                          coords.timestamp,
+                                        ).toLocaleTimeString()
+                                      : "..."}
+                            </p>
+                          </div>
+                        ),
+                      )}
                     </div>
 
                     <div className="rounded-3xl overflow-hidden shadow-2xl ring-2 ring-gray-300 dark:ring-gray-700">
                       {coords.lat && coords.lon ? (
-                        <iframe src={mapURL(coords.lat, coords.lon)} className="w-full h-96" loading="lazy" title="Lokasi Anda" />
+                        <iframe
+                          src={mapURL(coords.lat, coords.lon)}
+                          className="w-full h-96"
+                          loading="lazy"
+                          title="Lokasi Anda"
+                        />
                       ) : (
                         <div className="h-96 bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
                           <div className="text-center">
                             <AlertCircle className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                            <p className="text-gray-500 text-lg">Menunggu sinyal GPS...</p>
+                            <p className="text-gray-500 text-lg">
+                              {locationErrorMsg || "Menunggu sinyal lokasi..."}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -411,24 +670,33 @@ export default function AbsensiClient() {
 
                 {/* Submit & Reset */}
                 <div className="pt-8 flex flex-col sm:flex-row gap-6 items-center">
-                  <button type="submit" disabled={uploading || !photoBlob || !name.trim()} className="relative flex-1 w-full sm:w-auto px-12 py-7 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-2xl font-black rounded-3xl shadow-2xl hover:shadow-3xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-4 overflow-hidden">
+                  <button
+                    type="submit"
+                    disabled={uploading || !photoBlob || !name.trim()}
+                    className="relative flex-1 w-full sm:w-auto px-12 py-7 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-2xl font-black rounded-3xl shadow-2xl hover:shadow-3xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-4 overflow-hidden">
                     {uploading ? (
                       <>
                         <RefreshCw className="w-8 h-8 animate-spin" />
                         Mengirim... {uploadProgress}%
                         <div className="absolute bottom-0 left-0 h-2 bg-white/30 w-full">
-                          <div className="h-full bg-white transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                          <div
+                            className="h-full bg-white transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
                         </div>
                       </>
                     ) : (
                       <>
                         <Send className="w-8 h-8" />
-                        Kirim Absensi 
+                        Kirim Absensi
                       </>
                     )}
                   </button>
 
-                  <button type="button" onClick={resetForm} className="px-10 py-6 bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-lg rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-10 py-6 bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-lg rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
                     Reset
                   </button>
                 </div>
@@ -436,7 +704,8 @@ export default function AbsensiClient() {
 
               <div className="mt-12 text-center text-gray-500 dark:text-gray-400">
                 <p>
-                  Izinkan Akses <b>Kamera</b> dan <b>Lokasi</b> untuk mengirimkan absensi.
+                  Izinkan Akses <b>Kamera</b> dan <b>Lokasi</b> untuk
+                  mengirimkan absensi.
                 </p>
               </div>
             </div>
