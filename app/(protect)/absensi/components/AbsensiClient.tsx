@@ -383,9 +383,9 @@ export default function AbsensiClient() {
 
         // Redirect ke halaman QR dengan query params
         const qrUrl = `/absensi/qr?id=${attendanceId}&name=${encodeURIComponent(name)}&timestamp=${coords.timestamp || Date.now()}&qrCodeValue=${data.qrCodeValue}`;
-        // window.location.href = qrUrl;
+        window.location.href = qrUrl;
 
-        // resetForm();
+        resetForm();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Terjadi kesalahan";
