@@ -307,7 +307,7 @@ export default function Navbar() {
               onClick={() => router.push("/login")}
               className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold px-5 sm:px-7 py-2 rounded-full shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-400 text-sm sm:text-base">
               <LogIn className="w-4 h-4 mr-1.5 sm:mr-2" />
-              Logout
+              Login
             </Button>
           )}
 
