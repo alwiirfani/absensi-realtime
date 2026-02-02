@@ -1,9 +1,10 @@
 export default async function VerifyPage({
   searchParams,
 }: {
-  searchParams: { code?: string };
+  searchParams: Promise<{ code?: string }>;
 }) {
-  const code = searchParams.code;
+  const resolvedSearchParams = await searchParams;
+  const code = resolvedSearchParams.code;
 
   if (!code) {
     return <div className="p-8 text-center">Code QR tidak ditemukan</div>;
