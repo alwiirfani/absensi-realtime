@@ -261,7 +261,7 @@ export default function Navbar() {
                       </p>
                     </div>
                     <div className="p-2 sm:p-3 space-y-1">
-                      {[
+                      {/* {[
                         { icon: User, label: "Profil Saya", href: "/profile" },
                         {
                           icon: Settings,
@@ -283,7 +283,7 @@ export default function Navbar() {
                             {item.label}
                           </span>
                         </Link>
-                      ))}
+                      ))} */}
                       <button
                         onClick={handleLogout}
                         disabled={loading}
