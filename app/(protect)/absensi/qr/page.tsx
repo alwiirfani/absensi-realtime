@@ -7,6 +7,8 @@ import { Download, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
 
+export const dynamic = "force-dynamic";
+
 export default function QRPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
