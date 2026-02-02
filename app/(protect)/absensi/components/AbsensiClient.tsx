@@ -200,7 +200,7 @@ export default function AbsensiClient() {
             resolve();
           };
 
-          const onError = (e: Event) => {
+          const onError = () => {
             video.removeEventListener("error", onError);
             reject(new Error("Gagal memuat stream video"));
           };

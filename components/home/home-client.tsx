@@ -277,14 +277,14 @@ function HeroSection() {
   );
 }
 
-const FE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+// const FE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 interface HomeClientProps {
   user?: UserAuth | null;
 }
 
 // === MAIN COMPONENT ===
-const HomeClient: React.FC<HomeClientProps> = ({ user }) => {
+const HomeClient: React.FC<HomeClientProps> = ({}) => {
   const { darkMode } = useContext(DarkModeContext) || { darkMode: false };
   const [counts, setCounts] = useState([0, 0, 0]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);

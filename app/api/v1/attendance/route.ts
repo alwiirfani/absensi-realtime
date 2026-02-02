@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const latStr = formData.get("lat") as string | null;
     const lonStr = formData.get("lon") as string | null;
-    const accuracyStr = formData.get("accuracy") as string | null;
+    // const accuracyStr = formData.get("accuracy") as string | null;
     const timestampStr = formData.get("timestamp") as string | null;
     const photoFile = formData.get("photo") as File | null;
 
