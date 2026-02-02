@@ -26,6 +26,7 @@ import { useWindowSize } from "react-use";
 import FooterClient from "@/components/layouts/Footer";
 import { useUser } from "@/providers/auth-provider";
 import Image from "next/image";
+import { getPlaiceholder } from "plaiceholder";
 
 interface Coordinates {
   lat: number | null;
@@ -41,10 +42,13 @@ export default function AbsensiClient() {
   const watchRef = useRef<number | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 4;
 
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoURL, setPhotoURL] = useState<string>("");
+  const [blurDataURL, setBlurDataURL] = useState<string>("");
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [name, setName] = useState<string>("");
@@ -57,7 +61,13 @@ export default function AbsensiClient() {
     timestamp: null,
   });
   const [locationStatus, setLocationStatus] = useState<
-    "loading" | "success" | "error" | "denied" | "timeout"
+    | "loading"
+    | "success"
+    | "fallback"
+    | "error"
+    | "denied"
+    | "timeout"
+    | "permanent-error"
   >("loading");
   const [locationErrorMsg, setLocationErrorMsg] = useState<string>("");
 
@@ -71,7 +81,7 @@ export default function AbsensiClient() {
     }
   }, [user, name]);
 
-  // Geolocation watcher + retry logic
+  // Geolocation watcher + retry + fallback IP
   const startWatchingLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationStatus("error");
@@ -81,9 +91,9 @@ export default function AbsensiClient() {
     }
 
     const options = {
-      enableHighAccuracy: false, // ← Kunci utama: false biar pakai network/WiFi
-      timeout: 20000, // 20 detik
-      maximumAge: 60000, // reuse posisi max 1 menit
+      enableHighAccuracy: false, // false lebih stabil di WiFi/laptop
+      timeout: 15000, // kurangi jadi 15 detik
+      maximumAge: 60000,
     };
 
     const success = (position: GeolocationPosition) => {
@@ -96,7 +106,38 @@ export default function AbsensiClient() {
       });
       setLocationStatus("success");
       setLocationErrorMsg("");
+      retryCountRef.current = 0; // reset counter
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      toast.success("Lokasi berhasil dideteksi!");
+    };
+
+    const fallbackToIP = async () => {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (!res.ok) throw new Error("Fallback gagal");
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          setCoords({
+            lat: data.latitude,
+            lon: data.longitude,
+            accuracy: 5000, // estimasi kota-level ~5km
+            timestamp: Date.now(),
+          });
+          setLocationStatus("fallback");
+          setLocationErrorMsg(
+            "Menggunakan estimasi lokasi dari IP (akurasi kota/provinsi). Cukup untuk absensi.",
+          );
+          toast.info("Lokasi approximasi via IP digunakan.");
+        } else {
+          throw new Error("No lat/lon from IP");
+        }
+      } catch {
+        setLocationStatus("permanent-error");
+        setLocationErrorMsg(
+          "Lokasi tidak tersedia sama sekali. Pastikan WiFi aktif, matikan VPN, atau gunakan HP.",
+        );
+        toast.error("Fallback IP juga gagal.");
+      }
     };
 
     const errorHandler = (error: GeolocationPositionError) => {
@@ -107,16 +148,16 @@ export default function AbsensiClient() {
 
       switch (error.code) {
         case 1: // PERMISSION_DENIED
-          msg = "Izin lokasi ditolak. Izinkan di pengaturan browser.";
+          msg = "Izin lokasi ditolak. Izinkan di pengaturan browser/OS.";
           status = "denied";
           break;
         case 2: // POSITION_UNAVAILABLE
           msg =
-            "Lokasi tidak tersedia (mungkin WiFi lemah atau quota Google habis). Coba pakai HP atau jaringan lain.";
+            "Lokasi tidak tersedia (WiFi lemah, VPN aktif, atau provider error). Mencoba estimasi dari IP...";
           status = "error";
           break;
         case 3: // TIMEOUT
-          msg = "Waktu habis. Coba lagi atau pastikan internet stabil.";
+          msg = "Waktu habis. Pastikan internet stabil dan WiFi aktif.";
           status = "timeout";
           break;
         default:
@@ -127,12 +168,24 @@ export default function AbsensiClient() {
       setLocationErrorMsg(msg);
       toast.error(msg);
 
-      // Retry setelah 8 detik kalau bukan denied
-      if (error.code !== 1 && !retryTimeoutRef.current) {
+      // Retry logic hanya kalau bukan denied
+      if (error.code !== 1 && retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current++;
+        setLocationErrorMsg(
+          `${msg} Mencoba lagi (${retryCountRef.current}/${MAX_RETRIES})...`,
+        );
         retryTimeoutRef.current = setTimeout(() => {
           retryTimeoutRef.current = null;
-          startWatchingLocation(); // retry
+          startWatchingLocation();
         }, 8000);
+      } else if (error.code === 2 || error.code === 3) {
+        // Setelah max retry atau langsung code 2/3 → fallback IP
+        fallbackToIP();
+      } else {
+        setLocationStatus("permanent-error");
+        setLocationErrorMsg(
+          "Gagal permanen. Coba refresh halaman atau ganti perangkat.",
+        );
       }
     };
 
@@ -257,65 +310,94 @@ export default function AbsensiClient() {
     }
   }, []);
 
+  // Helper untuk generate blurDataURL dari Blob
+  const generateBlurPlaceholder = useCallback(async (blob: Blob) => {
+    try {
+      const buffer = await blob.arrayBuffer();
+      const { base64 } = await getPlaiceholder(Buffer.from(buffer), {
+        size: 10,
+      });
+      setBlurDataURL(base64);
+    } catch (err) {
+      console.error("Gagal generate blur placeholder:", err);
+      setBlurDataURL(""); // fallback → placeholder jadi empty
+      // toast.warning("Efek blur loading tidak tersedia"); // optional
+    }
+  }, []);
+
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) {
       toast.error("Video atau canvas tidak tersedia");
       return;
     }
 
-    const video: HTMLVideoElement = videoRef.current;
-    const canvas: HTMLCanvasElement = canvasRef.current;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
 
-    // Pastikan video benar-benar siap
     if (
       video.readyState < video.HAVE_CURRENT_DATA ||
       video.videoWidth === 0 ||
       video.videoHeight === 0
     ) {
-      toast.warning(
-        "Video belum siap untuk di-capture. Tunggu sebentar lalu coba lagi.",
-      );
+      toast.warning("Video belum siap. Tunggu sebentar lalu coba lagi.");
       return;
     }
 
-    const ctx: CanvasRenderingContext2D | null = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
-      toast.error("Gagal mendapatkan konteks canvas 2D");
+      toast.error("Gagal mendapatkan konteks canvas");
       return;
     }
 
-    // Set ukuran canvas sesuai video asli
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
-    // Gambar frame saat ini ke canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert ke blob
     canvas.toBlob(
-      (blob: Blob | null) => {
+      (blob) => {
         if (blob && blob.size > 1000) {
-          // hindari blob kosong/invalid
+          // Revoke URL lama kalau ada
+          if (photoURL) URL.revokeObjectURL(photoURL);
+
           setPhotoBlob(blob);
-          setPhotoURL(URL.createObjectURL(blob));
+          const newUrl = URL.createObjectURL(blob);
+          setPhotoURL(newUrl);
+          generateBlurPlaceholder(blob); // ← generate blur di sini
           toast.success("Foto berhasil di-capture!");
         } else {
-          toast.error("Gagal membuat file foto – hasil capture kosong");
+          toast.error("Hasil capture kosong");
         }
       },
       "image/jpeg",
       0.92,
     );
-  }, []);
+  }, [photoURL, generateBlurPlaceholder]);
 
-  const handleFileUpload = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    setPhotoBlob(file);
-    setPhotoURL(URL.createObjectURL(file));
-    toast.success("Foto berhasil di-upload!");
-  }, []);
+      // Revoke URL lama kalau ada
+      if (photoURL) URL.revokeObjectURL(photoURL);
+
+      setPhotoBlob(file);
+      const newUrl = URL.createObjectURL(file);
+      setPhotoURL(newUrl);
+      generateBlurPlaceholder(file); // ← generate blur di sini juga
+      toast.success("Foto berhasil di-upload!");
+    },
+    [photoURL, generateBlurPlaceholder],
+  );
+
+  // Cleanup URL blob saat component unmount atau photo berganti
+  useEffect(() => {
+    return () => {
+      if (photoURL) {
+        URL.revokeObjectURL(photoURL);
+      }
+    };
+  }, [photoURL]);
 
   const resetForm = useCallback(() => {
     stopCamera();
@@ -554,14 +636,17 @@ export default function AbsensiClient() {
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 500px"
-                            placeholder="blur" // optional: blur saat loading (bagus UX)
+                            placeholder={blurDataURL ? "blur" : "empty"}
+                            blurDataURL={blurDataURL || undefined}
                             unoptimized={true}
                           />
                           <button
                             type="button"
                             onClick={() => {
+                              if (photoURL) URL.revokeObjectURL(photoURL);
                               setPhotoURL("");
                               setPhotoBlob(null);
+                              setBlurDataURL("");
                             }}
                             className="absolute top-4 right-4 p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-xl">
                             <X className="w-6 h-6" />

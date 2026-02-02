@@ -1,4 +1,3 @@
-// page.tsx  ← Server Component (tanpa 'use client')
 import { Suspense } from "react";
 import QRContent from "../components/QrContent";
 
