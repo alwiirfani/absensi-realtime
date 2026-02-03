@@ -88,6 +88,8 @@ export async function POST(req: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
+    console.log(response);
+
     return response;
   } catch (error) {
     console.error(error);

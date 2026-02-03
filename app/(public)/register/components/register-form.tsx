@@ -60,6 +60,8 @@ export default function RegisterForm({
 
       const data = await res.json();
 
+      console.log(data);
+
       if (!res.ok) {
         setMessage({
           type: "error",

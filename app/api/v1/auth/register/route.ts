@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log(user);
+
     return NextResponse.json(
       {
         message: "Registrasi berhasil",
