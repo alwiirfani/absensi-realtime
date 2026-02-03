@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface SafeUser {
   id: string;
   name: string;
   email: string;
-  role: string; // Assuming Role is a string enum like 'ADMIN', 'USER', etc.
+  role: string;
   position: string;
   createdAt: string;
   updatedAt: string;
@@ -18,12 +17,12 @@ export default function UsersPage() {
   const [users, setUsers] = useState<SafeUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  // const router = useRouter();
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch("/api/users");
+        const res = await fetch("/api/v1/users");
         const data = await res.json();
         if (data.success) {
           setUsers(data.data);
@@ -31,6 +30,7 @@ export default function UsersPage() {
           setError(data.message);
         }
       } catch (err) {
+        console.error("GET /api/users error:", err);
         setError("Gagal memuat data users");
       } finally {
         setLoading(false);
@@ -52,6 +52,7 @@ export default function UsersPage() {
         alert(data.message);
       }
     } catch (err) {
+      console.error("DELETE /api/users/[id] error:", err);
       alert("Gagal menghapus user");
     }
   };
