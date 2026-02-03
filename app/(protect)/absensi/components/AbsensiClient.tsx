@@ -177,7 +177,6 @@ export default function AbsensiClient() {
           startWatchingLocation();
         }, 8000);
       } else if (error.code === 2 || error.code === 3) {
-        // Setelah max retry atau langsung code 2/3 → fallback IP
         fallbackToIP();
       } else {
         setLocationStatus("permanent-error");
@@ -223,7 +222,7 @@ export default function AbsensiClient() {
     return () => stopCamera();
   }, [stopCamera]);
 
-  // Ganti startCamera menjadi ini (tanpa any, type lebih aman)
+  // Ganti startCamera menjadi ini
   const startCamera = useCallback(async () => {
     try {
       const stream: MediaStream = await navigator.mediaDevices.getUserMedia({

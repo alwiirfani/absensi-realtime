@@ -1,11 +1,10 @@
-// app/api/attendance/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import type { UploadApiResponse } from "cloudinary";
 import { requireAuth } from "@/lib/auth";
 import db from "@/lib/db";
 
-// Konfigurasi Cloudinary (taruh di .env)
+// Konfigurasi Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -66,7 +65,7 @@ export async function POST(req: NextRequest) {
       );
 
       photoUrl = uploadResult.secure_url;
-    } catch (uploadErr: unknown) {
+    } catch (uploadErr) {
       console.error("Cloudinary upload error:", uploadErr);
       return NextResponse.json(
         { error: "Gagal mengunggah foto ke Cloudinary" },
@@ -107,7 +106,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: userAccess.userId,
         qrId: qrCode.id,
-        clockIn: new Date(Number(timestampStr) || Date.now()),
+        clockIn: timestampStr ? new Date(Number(timestampStr)) : new Date(),
         photoUrl,
         locationId,
       },

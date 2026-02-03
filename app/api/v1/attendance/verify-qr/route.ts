@@ -1,4 +1,3 @@
-// app/api/verify-qr/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
@@ -65,7 +64,7 @@ export async function GET(req: NextRequest) {
       data: { isUsed: true },
     });
 
-    // Return hasil verifikasi (bisa untuk halaman web atau app lain)
+    // Return hasil verifikasi
     return NextResponse.json({
       success: true,
       message: "Absensi berhasil diverifikasi!",

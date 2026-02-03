@@ -1,4 +1,3 @@
-// QRContent.tsx
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
@@ -11,7 +10,7 @@ export default function QRContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const attendanceId = searchParams.get("attendanceId");
+  const attendanceId = searchParams.get("id");
   const name = searchParams.get("name");
   const timestamp = searchParams.get("timestamp");
   const qrCodeValue = searchParams.get("qrCodeValue");
