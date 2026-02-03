@@ -3,10 +3,11 @@
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 
-type UpdateUserState = {
+export type UpdateUserState = {
   error?: string;
-  success?: boolean;
-  fieldErrors?: Record<string, string>;
+  fieldErrors?: Partial<
+    Record<"name" | "position" | "role" | "password", string>
+  >;
 };
 
 export async function updateUserAction(
@@ -19,11 +20,11 @@ export async function updateUserAction(
   const roleRaw = formData.get("role") as string;
   const password = formData.get("password") as string;
 
-  const fieldErrors: Record<string, string> = {};
+  const fieldErrors: UpdateUserState["fieldErrors"] = {};
 
-  if (!id) fieldErrors.id = "ID tidak valid";
+  // Validasi sederhana
   if (!name?.trim()) fieldErrors.name = "Nama wajib diisi";
-  if (!position?.trim()) fieldErrors.position = "Posisi wajib diisi";
+  if (!position?.trim()) fieldErrors.position = "Jabatan wajib diisi";
   if (!roleRaw) fieldErrors.role = "Role wajib dipilih";
 
   const role = roleRaw as Role;
@@ -32,7 +33,7 @@ export async function updateUserAction(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
-    return { error: "Validasi gagal", fieldErrors };
+    return { error: "Mohon periksa input Anda", fieldErrors };
   }
 
   const payload: Record<string, unknown> = {
@@ -48,22 +49,21 @@ export async function updateUserAction(
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
   try {
-    const res = await fetch(`${baseUrl}/api/users/${id}`, {
+    const res = await fetch(`${baseUrl}/api/v1/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
-      const errData = await res.json();
-      return { error: errData.message || "Gagal memperbarui data" };
+      const errData = await res.json().catch(() => ({}));
+      return { error: errData.message || "Gagal memperbarui data pengguna" };
     }
 
-    // Sukses → redirect
+    // Sukses → redirect ke daftar user
     redirect("/users?status=updated");
   } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Terjadi kesalahan server",
-    };
+    console.error("Update user error:", err);
+    return { error: "Terjadi kesalahan server. Coba lagi nanti." };
   }
 }
