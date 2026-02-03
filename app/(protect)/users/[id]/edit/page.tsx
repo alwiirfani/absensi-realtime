@@ -7,7 +7,7 @@ interface SafeUser {
   id: string;
   name: string;
   email: string;
-  role: string; // Assuming Role is a string enum
+  role: string;
   position: string;
   createdAt: string;
   updatedAt: string;
@@ -35,12 +35,11 @@ export default function EditUserPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Assuming possible roles from your Prisma enum, adjust as needed
-  const roles = ["ADMIN", "USER", "MANAGER"]; // Ganti dengan enum Role yang sebenarnya
-
+  const roles = ["ADMIN", "EMPLOYEE"];
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`/api/users/${id}`);
+        const res = await fetch(`/api/v1/users/${id}`);
         const data = await res.json();
         if (data.success) {
           setUser(data.data);
@@ -51,6 +50,7 @@ export default function EditUserPage() {
           setError(data.message);
         }
       } catch (err) {
+        console.error("GET /api/users/[id] error:", err);
         setError("Gagal memuat data user");
       } finally {
         setLoading(false);
@@ -76,7 +76,7 @@ export default function EditUserPage() {
     }
 
     try {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await fetch(`/api/v1/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updateData),
@@ -89,6 +89,7 @@ export default function EditUserPage() {
         setError(data.message);
       }
     } catch (err) {
+      console.error("PATCH /api/users/[id] error:", err);
       setError("Gagal mengupdate user");
     }
   };
