@@ -43,7 +43,7 @@ export default function UsersPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus user ini?")) return;
 
     try {
-      const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/users/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         setUsers(users.filter((user) => user.id !== id));
@@ -70,9 +70,9 @@ export default function UsersPage() {
         <table className="min-w-full table-auto">
           <thead className="bg-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              {/* <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                 ID
-              </th>
+              </th> */}
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                 Nama
               </th>
@@ -96,7 +96,7 @@ export default function UsersPage() {
           <tbody>
             {users.map((user) => (
               <tr key={user.id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm text-gray-900">{user.id}</td>
+                {/* <td className="px-6 py-4 text-sm text-gray-900">{user.id}</td> */}
                 <td className="px-6 py-4 text-sm text-gray-900">{user.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">
                   {user.email}
