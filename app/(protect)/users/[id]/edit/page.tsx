@@ -1,78 +1,201 @@
-// app/users/[id]/edit/page.tsx
-import { Role } from "@prisma/client";
-import Link from "next/link";
-import EditUserForm from "./components/EditUserForm";
+"use client";
 
-type SafeUser = {
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+
+interface SafeUser {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  role: string; // Assuming Role is a string enum
   position: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-async function getUser(id: string): Promise<SafeUser | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  try {
-    const res = await fetch(`${baseUrl}/api/users/${id}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-
-    const json: ApiResponse<SafeUser> = await res.json();
-    return json.success && json.data ? json.data : null;
-  } catch {
-    return null;
-  }
+interface UpdateUserInput {
+  name?: string;
+  position?: string;
+  role?: string;
+  password?: string;
 }
 
-export default async function EditUserPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const user = await getUser(id);
+export default function EditUserPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const router = useRouter();
 
-  if (!user) {
+  const [user, setUser] = useState<SafeUser | null>(null);
+  const [name, setName] = useState("");
+  const [position, setPosition] = useState("");
+  const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Assuming possible roles from your Prisma enum, adjust as needed
+  const roles = ["ADMIN", "USER", "MANAGER"]; // Ganti dengan enum Role yang sebenarnya
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`/api/users/${id}`);
+        const data = await res.json();
+        if (data.success) {
+          setUser(data.data);
+          setName(data.data.name);
+          setPosition(data.data.position);
+          setRole(data.data.role);
+        } else {
+          setError(data.message);
+        }
+      } catch (err) {
+        setError("Gagal memuat data user");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    const updateData: UpdateUserInput = {};
+    if (name !== user?.name) updateData.name = name;
+    if (position !== user?.position) updateData.position = position;
+    if (role !== user?.role) updateData.role = role;
+    if (password) updateData.password = password;
+
+    if (Object.keys(updateData).length === 0) {
+      setError("Tidak ada perubahan yang dilakukan");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("User berhasil diupdate");
+        setTimeout(() => router.push("/users"), 2000);
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError("Gagal mengupdate user");
+    }
+  };
+
+  if (loading)
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="rounded-2xl bg-white p-10 text-center shadow-xl dark:bg-gray-900">
-          <h1 className="mb-4 text-2xl font-bold text-red-600 dark:text-red-400">
-            Pengguna tidak ditemukan
-          </h1>
-          <Link
-            href="/users"
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-700">
-            Kembali ke Daftar
-          </Link>
-        </div>
-      </div>
+      <div className="flex justify-center items-center h-screen">Memuat...</div>
     );
-  }
+  if (error && !user)
+    return <div className="text-red-500 text-center">{error}</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12 dark:bg-gradient-to-b dark:from-gray-950 dark:to-gray-900">
-      <div className="mx-auto max-w-4xl px-4 pt-10 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Edit Pengguna
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Mengubah data {user.name} ({user.email})
-          </p>
+    <div className="container mx-auto p-6 max-w-lg">
+      <h1 className="text-3xl font-bold mb-6">Edit User</h1>
+      {success && <p className="text-green-500 mb-4">{success}</p>}
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-md rounded-lg p-6">
+        <div className="mb-4">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700">
+            Nama
+          </label>
+          <input
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
-
-        <EditUserForm user={user} />
-      </div>
+        <div className="mb-4">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700">
+            Email (Tidak Dapat Diubah)
+          </label>
+          <input
+            type="email"
+            id="email"
+            value={user?.email || ""}
+            disabled
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100"
+          />
+        </div>
+        <div className="mb-4">
+          <label
+            htmlFor="position"
+            className="block text-sm font-medium text-gray-700">
+            Posisi
+          </label>
+          <input
+            type="text"
+            id="position"
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="mb-4">
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-gray-700">
+            Role
+          </label>
+          <select
+            id="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-4">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700">
+            Password Baru (Opsional)
+          </label>
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mr-4 px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">
+            Batal
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Simpan Perubahan
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
