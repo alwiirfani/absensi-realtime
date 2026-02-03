@@ -207,7 +207,7 @@ export default function AbsensiClient() {
     return cleanup;
   }, [startWatchingLocation]);
 
-  // Stop camera helper (stable)
+  // Stop camera helper
   const stopCamera = useCallback(() => {
     if (videoRef.current?.srcObject instanceof MediaStream) {
       const stream = videoRef.current.srcObject as MediaStream;
