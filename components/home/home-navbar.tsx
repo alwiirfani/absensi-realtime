@@ -26,7 +26,8 @@ export default function Navbar() {
 
   // ✅ ambil user dari AuthProvider
   const { user: authUser } = useUser();
-  const user = authUser?.email ?? null;
+  const email = authUser?.email ?? null;
+  const role = authUser?.role ?? "EMPLOYEE";
 
   const [message, setMessage] = useState<{
     type: "success" | "";
@@ -71,10 +72,14 @@ export default function Navbar() {
   };
 
   const navItems = [
-    { name: "Home", href: "/" },
-    { name: "Absensi", href: "/absensi" },
-    { name: "Kontak", href: "/kontak" },
-  ];
+    { name: "Home", href: "/", roles: ["EMPLOYEE", "ADMIN"] },
+    { name: "Absensi", href: "/absensi", roles: ["EMPLOYEE", "ADMIN"] },
+    { name: "Kontak", href: "/kontak", roles: ["EMPLOYEE", "ADMIN"] },
+    { name: "Pengguna", href: "/users", roles: ["ADMIN"] }, // hanya admin
+  ].filter(
+    (item) =>
+      email ? item.roles.includes(role) : item.roles.includes("public"), // atau kosongkan jika hanya untuk login
+  );
 
   return (
     <>
@@ -214,7 +219,7 @@ export default function Navbar() {
           </Button>
 
           {/* User Profile Dropdown - Avatar + Status + Ultra Menu */}
-          {user ? (
+          {authUser ? (
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
@@ -229,12 +234,12 @@ export default function Navbar() {
                 }}>
                 <div className="relative">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-cyan-300 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
-                    {user.charAt(0).toUpperCase()}
+                    {authUser.email.charAt(0).toUpperCase()}
                   </div>
                   <motion.div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulseGlow" />
                 </div>
                 <span className="hidden sm:block text-sm font-semibold">
-                  {user.split("@")[0]}
+                  {authUser.email.split("@")[0]}
                 </span>
                 <ChevronDown className="w-4 h-4 transition-transform duration-400 group-hover:rotate-180" />
               </button>
@@ -253,7 +258,7 @@ export default function Navbar() {
                     }`}>
                     <div className="p-4 sm:p-5 border-b border-gray-200/30 dark:border-gray-700/30">
                       <p className="text-sm font-bold text-gray-900 dark:text-white">
-                        {user}
+                        {authUser.email}
                       </p>
                       <p className="text-xs opacity-70 flex items-center gap-1 mt-1">
                         <Activity className="w-3.5 h-3.5 text-green-500 animate-pulse" />
@@ -389,7 +394,7 @@ export default function Navbar() {
                   {darkMode ? "Light Mode" : "Dark Mode"}
                 </Button>
 
-                {user ? (
+                {authUser ? (
                   <Button
                     onClick={handleLogout}
                     disabled={loading}
