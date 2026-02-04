@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isTokenExpiredRuntimeEdge } from "./lib/auth-edge";
 
-const publicPaths = ["/login", "/register"];
+const publicPaths = ["/login", "/register", "/verify"];
 
 export const middleware = (request: NextRequest) => {
   const { pathname } = request.nextUrl;

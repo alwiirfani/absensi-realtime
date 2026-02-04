@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     // Case 1: Tidak ada code → redirect dengan error
     if (!code) {
-      const url = new URL("/absensi/qr/verify", origin);
+      const url = new URL("/verify", origin);
       url.searchParams.set("success", "false");
       url.searchParams.set("message", "Code QR tidak ditemukan");
       return NextResponse.redirect(url, 303); // 303 See Other lebih cocok untuk redirect setelah GET
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
 
     // Case 2: QR tidak ditemukan
     if (!qrCode) {
-      const url = new URL("/absensi/qr/verify", origin);
+      const url = new URL("/verify", origin);
       url.searchParams.set("success", "false");
       url.searchParams.set("message", "QR Code tidak ditemukan");
       return NextResponse.redirect(url, 303);
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
 
     // Case 3: Expired
     if (qrCode.expiredAt < now) {
-      const url = new URL("/absensi/qr/verify", origin);
+      const url = new URL("/verify", origin);
       url.searchParams.set("success", "false");
       url.searchParams.set("message", "QR Code sudah kadaluarsa");
       return NextResponse.redirect(url, 303);
@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
 
     // Case 4: Sudah digunakan
     if (qrCode.isUsed) {
-      const url = new URL("/absensi/qr/verify", origin);
+      const url = new URL("/verify", origin);
       url.searchParams.set("success", "false");
       url.searchParams.set("message", "QR Code sudah pernah digunakan");
       return NextResponse.redirect(url, 303);
@@ -168,7 +168,7 @@ export async function GET(req: NextRequest) {
 
     // Case sukses → redirect dengan data minimal lewat query params
     // (atau simpan di session/cookie kalau data terlalu besar)
-    const url = new URL("/absensi/qr/verify", origin);
+    const url = new URL("/verify", origin);
     url.searchParams.set("success", "true");
     url.searchParams.set("message", "Absensi berhasil diverifikasi!");
     url.searchParams.set("name", qrCode.user.name);
@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Error verify QR:", error);
 
-    const url = new URL("/absensi/qr/verify", origin);
+    const url = new URL("/verify", origin);
     url.searchParams.set("success", "false");
     url.searchParams.set("message", "Gagal verifikasi QR");
     return NextResponse.redirect(url, 303);
